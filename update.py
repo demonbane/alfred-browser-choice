@@ -1,57 +1,41 @@
 # encoding: utf-8
 
 from workflow import Workflow3
+import sys
+import logging
 
 def gethandlers():
     import os
-    import re
-    rexps = [
-        re.compile('^\s*(bundle)\s*id:\s*(\d*)'),
-        re.compile('^\s*(path):\s*(.*)'),
-        re.compile('^\s*(name):\s*(.*)'),
-        re.compile('^\s*(bindings):\s*(.*)')
-    ]
-    handlers = {}
-    bundle = ""
-    name = ""
-    path = ""
+    from LaunchServices import (LSCopyApplicationURLsForURL,
+                            kLSRolesAll,
+                            CFURLCreateWithString)
 
-    dump = os.popen("/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/LaunchServices.framework/Versions/A/Support/lsregister -dump")
+    url = CFURLCreateWithString(None, 'http://example.com', None)
+    apps = {}
 
-    for line in dump.readlines():
-        for rexp in rexps:
-            m = rexp.match(line)
-            if not m:
-                continue
+    nsurls = LSCopyApplicationURLsForURL(url, kLSRolesAll)
+    paths = set([wf.decode(nsurl.path()).rstrip('/') for nsurl in nsurls])
 
-            key = m.group(1)
-            value = m.group(2)
+    for path in paths:
+        name = os.path.splitext(os.path.basename(path))[0]
+        if name in 'nwjs' 'VLC media player':
+            continue
+        apps[name] = path
+        log.debug('http handler : {} // {}'.format(
+                  name, path))
 
-            if key == "bundle":
-                if bundle != value:
-                    bundle = value
-                    name = ""
-                    path = ""
+    log.debug('{} handlers cached'.format(len(apps)))
 
-            if key == "name" and not name:
-                name = value
+    return apps
 
-            if key == "path" and not path:
-                path = value
-
-            if key == "bindings" and 'http:' in value.split(","):
-                handlers[name] = path
-
-    dump.close()
-    handlers.pop('nwjs', None)
-    handlers.pop('VLC media player', None)
-    return handlers
 
 def main(wf):
     browsers = wf.cached_data('handlers', gethandlers, max_age=600)
-    # Record our progress in the log file
-    wf.logger.debug('{} handlers cached'.format(len(browsers)))
 
 if __name__ == '__main__':
     wf = Workflow3()
+    log = wf.logger
+    if sys.stdout.isatty():
+        log.setLevel(logging.DEBUG)
+        log.debug('Running in a terminal')
     wf.run(main)
