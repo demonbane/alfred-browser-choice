@@ -18,6 +18,13 @@ def main(wf):
 
     browsers = wf.cached_data('handlers', None, max_age=0)
 
+    if wf.update_available:
+        # Add a notification to top of Script Filter results
+        wf.add_item('New version available',
+                    'Action this item to install the update',
+                    autocomplete='workflow:update',
+                    icon=ICON_INFO)
+
     if not wf.cached_data_fresh('handlers', max_age=600):
         cmd = ['/usr/bin/python', wf.workflowfile('update.py')]
         run_in_background('update', cmd)
@@ -42,5 +49,5 @@ def main(wf):
 
 
 if __name__ == '__main__':
-     wf = Workflow3()
-     sys.exit(wf.run(main))
+    wf = Workflow3(update_settings={'github_slug': 'demonbane/alfred-browser-choice'})
+    sys.exit(wf.run(main))
